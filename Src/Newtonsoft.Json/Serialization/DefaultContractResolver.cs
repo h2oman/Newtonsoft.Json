@@ -298,7 +298,7 @@ namespace Newtonsoft.Json.Serialization
               else if (dataContractAttribute != null && JsonTypeReflector.GetAttribute<DataMemberAttribute>(member.GetCustomAttributeProvider()) != null)
                 serializableMembers.Add(member);
 #endif
-              else if (memberSerialization == MemberSerialization.Fields && member.MemberType() == MemberTypes.Field)
+              else if (memberSerialization == MemberSerialization.Fields && member.MemberType() == Newtonsoft.Json.Utilities.MemberTypes.Field)
                 serializableMembers.Add(member);
             }
           }
@@ -316,7 +316,7 @@ namespace Newtonsoft.Json.Serialization
         // serialize all fields
         foreach (MemberInfo member in allMembers)
         {
-          if (member.MemberType() == MemberTypes.Field)
+          if (member.MemberType() == Newtonsoft.Json.Utilities.MemberTypes.Field)
             serializableMembers.Add(member);
         }
       }

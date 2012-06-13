@@ -54,7 +54,7 @@ namespace Newtonsoft.Json.Bson
 
     public void Close()
     {
-#if !(NETFX_CORE || PORTABLE)
+#if !(NETFX_CORE || PORTABLE) || (MONOTOUCH || MONODROID)
       _writer.Close();
 #else
       _writer.Dispose();
