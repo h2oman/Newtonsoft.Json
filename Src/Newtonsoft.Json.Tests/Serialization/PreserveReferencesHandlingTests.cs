@@ -32,9 +32,9 @@ using Newtonsoft.Json.Tests.TestObjects;
 #if !NETFX_CORE
 using NUnit.Framework;
 #else
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using TestFixture = Microsoft.VisualStudio.TestTools.UnitTesting.TestClassAttribute;
-using Test = Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute;
+using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
+using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
+using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
 #endif
 
 namespace Newtonsoft.Json.Tests.Serialization
@@ -104,7 +104,7 @@ namespace Newtonsoft.Json.Tests.Serialization
       circularList.Add(new CircularList { new CircularList { circularList } });
 
       ExceptionAssert.Throws<JsonSerializationException>(
-        "Self referencing loop detected for type '" + classRef  + "'.",
+        "Self referencing loop detected with type '" + classRef + "'. Path '[2][0]'.",
         () =>
         {
           JsonConvert.SerializeObject(circularList, Formatting.Indented);
@@ -264,7 +264,7 @@ namespace Newtonsoft.Json.Tests.Serialization
       circularDictionary.Add("self", circularDictionary);
 
       ExceptionAssert.Throws<JsonSerializationException>(
-        @"Self referencing loop detected for type '" + classRef + "'.",
+        @"Self referencing loop detected with type '" + classRef + "'. Path ''.",
         () =>
           {
             JsonConvert.SerializeObject(circularDictionary, Formatting.Indented);
@@ -1006,6 +1006,74 @@ namespace Newtonsoft.Json.Tests.Serialization
 
       Assert.IsTrue(ReferenceEquals(referenceObject.Component1, referenceObject.Component2));
     }
+
+    [Test]
+    public void PropertyItemIsReferenceObject()
+    {
+      TestComponentSimple c1 = new TestComponentSimple();
+
+      PropertyItemIsReferenceObject o1 = new PropertyItemIsReferenceObject
+        {
+          Data = new PropertyItemIsReferenceBody
+            {
+              Prop1 = c1,
+              Prop2 = c1,
+              Data = new List<TestComponentSimple>
+                {
+                  c1
+                }
+            }
+        };
+
+      string json = JsonConvert.SerializeObject(o1, Formatting.Indented);
+      Assert.AreEqual(@"{
+  ""Data"": {
+    ""Prop1"": {
+      ""$id"": ""1"",
+      ""MyProperty"": 0
+    },
+    ""Prop2"": {
+      ""$ref"": ""1""
+    },
+    ""Data"": {
+      ""$id"": ""2"",
+      ""$values"": [
+        {
+          ""MyProperty"": 0
+        }
+      ]
+    }
+  }
+}", json);
+
+      PropertyItemIsReferenceObject o2 = JsonConvert.DeserializeObject<PropertyItemIsReferenceObject>(json);
+
+      TestComponentSimple c2 = o2.Data.Prop1;
+      TestComponentSimple c3 = o2.Data.Prop2;
+      TestComponentSimple c4 = o2.Data.Data[0];
+
+      Assert.IsTrue(ReferenceEquals(c2, c3));
+      Assert.IsFalse(ReferenceEquals(c2, c4));
+    }
+  }
+
+  public class PropertyItemIsReferenceBody
+  {
+    public TestComponentSimple Prop1 { get; set; }
+    public TestComponentSimple Prop2 { get; set; }
+    public IList<TestComponentSimple> Data { get; set; } 
+  }
+
+  public class PropertyItemIsReferenceObject
+  {
+    [JsonProperty(ItemIsReference = true)]
+    public PropertyItemIsReferenceBody Data { get; set; }
+  }
+
+  public class PropertyItemIsReferenceList
+  {
+    [JsonProperty(ItemIsReference = true)]
+    public IList<IList<object>> Data { get; set; }
   }
 
   [JsonArray(ItemIsReference = true)]

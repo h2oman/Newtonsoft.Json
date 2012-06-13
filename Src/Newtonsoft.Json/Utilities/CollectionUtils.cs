@@ -102,10 +102,8 @@ namespace Newtonsoft.Json.Utilities
     {
       ValidationUtils.ArgumentNotNull(type, "type");
 
-#if !NETFX_CORE
       if (typeof(IDictionary).IsAssignableFrom(type))
         return true;
-#endif
       if (ReflectionUtils.ImplementsGenericDefinition(type, typeof (IDictionary<,>)))
         return true;
 
@@ -159,26 +157,23 @@ namespace Newtonsoft.Json.Utilities
 
         return (IWrappedDictionary)ReflectionUtils.CreateGeneric(typeof(DictionaryWrapper<,>), new[] { dictionaryKeyType, dictionaryValueType }, instanceCreator, dictionary);
       }
-#if !NETFX_CORE
       else if (dictionary is IDictionary)
       {
         return new DictionaryWrapper<object, object>((IDictionary)dictionary);
       }
-#endif
       else
       {
         throw new ArgumentException("Can not create DictionaryWrapper for type {0}.".FormatWith(CultureInfo.InvariantCulture, dictionary.GetType()), "dictionary");
       }
     }
 
-    public static object CreateAndPopulateList(Type listType, Action<IList, bool> populateList)
+    public static IList CreateList(Type listType, out bool isReadOnlyOrFixedSize)
     {
       ValidationUtils.ArgumentNotNull(listType, "listType");
-      ValidationUtils.ArgumentNotNull(populateList, "populateList");
 
       IList list;
       Type collectionType;
-      bool isReadOnlyOrFixedSize = false;
+      isReadOnlyOrFixedSize = false;
 
       if (listType.IsArray)
       {
@@ -238,21 +233,6 @@ namespace Newtonsoft.Json.Utilities
 
       if (list == null)
         throw new InvalidOperationException("Cannot create and populate list type {0}.".FormatWith(CultureInfo.InvariantCulture, listType));
-
-      populateList(list, isReadOnlyOrFixedSize);
-
-      // create readonly and fixed sized collections using the temporary list
-      if (isReadOnlyOrFixedSize)
-      {
-        if (listType.IsArray)
-          list = ToArray(((List<object>)list).ToArray(), ReflectionUtils.GetCollectionItemType(listType));
-        else if (ReflectionUtils.InheritsGenericDefinition(listType, typeof(ReadOnlyCollection<>)))
-          list = (IList)ReflectionUtils.CreateInstance(listType, list);
-      }
-      else if (list is IWrappedCollection)
-      {
-        return ((IWrappedCollection) list).UnderlyingCollection;
-      }
 
       return list;
     }

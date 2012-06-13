@@ -33,9 +33,9 @@ using Newtonsoft.Json.Linq;
 #if !NETFX_CORE
 using NUnit.Framework;
 #else
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using TestFixture = Microsoft.VisualStudio.TestTools.UnitTesting.TestClassAttribute;
-using Test = Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute;
+using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
+using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
+using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
 #endif
 using Newtonsoft.Json.Utilities;
 using System.Globalization;
@@ -712,27 +712,27 @@ namespace Newtonsoft.Json.Tests.Linq
   ""StockValue"": 22050.0
 }", json);
     }
+  }
 
-    public class DynamicDictionary : DynamicObject
+  public class DynamicDictionary : DynamicObject
+  {
+    private readonly IDictionary<string, object> _values = new Dictionary<string, object>();
+
+    public override IEnumerable<string> GetDynamicMemberNames()
     {
-      private readonly IDictionary<string, object> _values = new Dictionary<string, object>();
+      return _values.Keys;
+    }
 
-      public override IEnumerable<string> GetDynamicMemberNames()
-      {
-        return _values.Keys;
-      }
+    public override bool TryGetMember(GetMemberBinder binder, out object result)
+    {
+      result = _values[binder.Name];
+      return true;
+    }
 
-      public override bool TryGetMember(GetMemberBinder binder, out object result)
-      {
-        result = _values[binder.Name];
-        return true;
-      }
-
-      public override bool TrySetMember(SetMemberBinder binder, object value)
-      {
-        _values[binder.Name] = value;
-        return true;
-      }
+    public override bool TrySetMember(SetMemberBinder binder, object value)
+    {
+      _values[binder.Name] = value;
+      return true;
     }
   }
 }

@@ -32,9 +32,9 @@ using System.Xml;
 #if !NETFX_CORE
 using NUnit.Framework;
 #else
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using TestFixture = Microsoft.VisualStudio.TestTools.UnitTesting.TestClassAttribute;
-using Test = Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute;
+using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
+using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
+using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
 #endif
 using Newtonsoft.Json;
 using System.IO;
@@ -174,8 +174,8 @@ namespace Newtonsoft.Json.Tests
     [Test]
     public void WriteValueObjectWithUnsupportedValue()
     {
-      ExceptionAssert.Throws<ArgumentException>(
-        @"Unsupported type: System.Version. Use the JsonSerializer class to get the object's JSON representation.",
+      ExceptionAssert.Throws<JsonWriterException>(
+        @"Unsupported type: System.Version. Use the JsonSerializer class to get the object's JSON representation. Path ''.",
         () =>
         {
           StringWriter sw = new StringWriter();
@@ -597,7 +597,7 @@ namespace Newtonsoft.Json.Tests
     public void BadWriteEndArray()
     {
       ExceptionAssert.Throws<JsonWriterException>(
-        "No token to close.",
+        "No token to close. Path ''.",
         () =>
         {
           StringBuilder sb = new StringBuilder();

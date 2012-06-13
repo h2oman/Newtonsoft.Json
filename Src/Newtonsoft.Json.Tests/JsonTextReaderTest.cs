@@ -30,9 +30,9 @@ using System.Text;
 #if !NETFX_CORE
 using NUnit.Framework;
 #else
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using TestFixture = Microsoft.VisualStudio.TestTools.UnitTesting.TestClassAttribute;
-using Test = Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute;
+using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
+using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
+using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
 #endif
 using Newtonsoft.Json;
 using System.IO;
@@ -2480,6 +2480,77 @@ bye", reader.Value);
       Assert.AreEqual(typeof(DateTime), reader.ValueType);
       Assert.IsTrue(reader.Read());
 #endif
+    }
+
+    [Test]
+    public void ResetJsonTextReaderErrorCount()
+    {
+      ToggleReaderError toggleReaderError = new ToggleReaderError(new StringReader("{'first':1,'second':2,'third':3}"));
+      JsonTextReader jsonTextReader = new JsonTextReader(toggleReaderError);
+
+      Assert.IsTrue(jsonTextReader.Read());
+
+      toggleReaderError.Error = true;
+
+      ExceptionAssert.Throws<Exception>(
+        "Read error",
+        () => jsonTextReader.Read());
+      ExceptionAssert.Throws<Exception>(
+        "Read error",
+        () => jsonTextReader.Read());
+
+      toggleReaderError.Error = false;
+
+      Assert.IsTrue(jsonTextReader.Read());
+      Assert.AreEqual("first", jsonTextReader.Value);
+
+      toggleReaderError.Error = true;
+
+      ExceptionAssert.Throws<Exception>(
+        "Read error",
+        () => jsonTextReader.Read());
+
+      toggleReaderError.Error = false;
+
+      Assert.IsTrue(jsonTextReader.Read());
+      Assert.AreEqual(1L, jsonTextReader.Value);
+
+      toggleReaderError.Error = true;
+
+      ExceptionAssert.Throws<Exception>(
+        "Read error",
+        () => jsonTextReader.Read());
+      ExceptionAssert.Throws<Exception>(
+        "Read error",
+        () => jsonTextReader.Read());
+      ExceptionAssert.Throws<Exception>(
+        "Read error",
+        () => jsonTextReader.Read());
+
+      toggleReaderError.Error = false;
+
+      //a reader use to skip to the end after 3 errors in a row
+      //Assert.IsFalse(jsonTextReader.Read());
+    }
+
+    public class ToggleReaderError : TextReader
+    {
+      private readonly TextReader _inner;
+
+      public bool Error { get; set; }
+
+      public ToggleReaderError(TextReader inner)
+      {
+        _inner = inner;
+      }
+
+      public override int Read(char[] buffer, int index, int count)
+      {
+        if (Error)
+          throw new Exception("Read error");
+
+        return _inner.Read(buffer, index, 1);
+      }
     }
   }
 

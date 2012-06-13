@@ -34,9 +34,9 @@ using Newtonsoft.Json.Utilities;
 #if !NETFX_CORE
 using NUnit.Framework;
 #else
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using TestFixture = Microsoft.VisualStudio.TestTools.UnitTesting.TestClassAttribute;
-using Test = Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute;
+using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
+using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
+using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
 #endif
 using Newtonsoft.Json.Schema;
 using System.IO;
@@ -751,6 +751,33 @@ namespace Newtonsoft.Json.Tests.Schema
   }
 }", json);
     }
+
+    [Test]
+    public void GenerateForNullableInt32()
+    {
+      JsonSchemaGenerator jsonSchemaGenerator = new JsonSchemaGenerator();
+
+      JsonSchema jsonSchema = jsonSchemaGenerator.Generate(typeof(NullableInt32TestClass));
+      string json = jsonSchema.ToString();
+
+      Assert.AreEqual(@"{
+  ""type"": ""object"",
+  ""properties"": {
+    ""Value"": {
+      ""required"": true,
+      ""type"": [
+        ""integer"",
+        ""null""
+      ]
+    }
+  }
+}", json);
+    }
+  }
+
+  public class NullableInt32TestClass
+  {
+    public int? Value { get; set; }
   }
 
   public class DMDSLBase

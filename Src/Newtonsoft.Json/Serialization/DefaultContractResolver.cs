@@ -358,6 +358,10 @@ namespace Newtonsoft.Json.Serialization
       contract.MemberSerialization = JsonTypeReflector.GetObjectMemberSerialization(contract.NonNullableUnderlyingType, ignoreSerializableAttribute);
       contract.Properties.AddRange(CreateProperties(contract.NonNullableUnderlyingType, contract.MemberSerialization));
 
+      JsonObjectAttribute attribute = JsonTypeReflector.GetJsonObjectAttribute(contract.NonNullableUnderlyingType);
+      if (attribute != null)
+        contract.ItemRequired = attribute._itemRequired;
+
       // check if a JsonConstructorAttribute has been defined and use that
       if (contract.NonNullableUnderlyingType.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Any(c => c.IsDefined(typeof(JsonConstructorAttribute), true)))
       {
@@ -457,7 +461,7 @@ namespace Newtonsoft.Json.Serialization
         property.Converter = property.Converter ?? matchingMemberProperty.Converter;
         property.MemberConverter = property.MemberConverter ?? matchingMemberProperty.MemberConverter;
         property.DefaultValue = property.DefaultValue ?? matchingMemberProperty.DefaultValue;
-        property.Required = (property.Required != Required.Default) ? property.Required : matchingMemberProperty.Required;
+        property._required = property._required ?? matchingMemberProperty._required;
         property.IsReference = property.IsReference ?? matchingMemberProperty.IsReference;
         property.NullValueHandling = property.NullValueHandling ?? matchingMemberProperty.NullValueHandling;
         property.DefaultValueHandling = property.DefaultValueHandling ?? matchingMemberProperty.DefaultValueHandling;
@@ -866,7 +870,7 @@ namespace Newtonsoft.Json.Serialization
       // warning - this method use to cause errors with Intellitrace. Retest in VS Ultimate after changes
       IValueProvider valueProvider;
 
-#if !(SILVERLIGHT || PORTABLE)
+#if !(SILVERLIGHT || PORTABLE || NETFX_CORE)
       if (DynamicCodeGeneration)
         valueProvider = new DynamicValueProvider(member);
       else
@@ -942,24 +946,24 @@ namespace Newtonsoft.Json.Serialization
       property.PropertyName = ResolvePropertyName(mappedName);
       property.UnderlyingName = name;
 
+      bool hasMemberAttribute = false;
       if (propertyAttribute != null)
       {
-        property.Required = propertyAttribute.Required;
+        property._required = propertyAttribute._required;
         property.Order = propertyAttribute._order;
+        hasMemberAttribute = true;
       }
 #if !PocketPC && !NET20
       else if (dataMemberAttribute != null)
       {
-        property.Required = (dataMemberAttribute.IsRequired) ? Required.AllowNull : Required.Default;
+        property._required = (dataMemberAttribute.IsRequired) ? Required.AllowNull : Required.Default;
         property.Order = (dataMemberAttribute.Order != -1) ? (int?) dataMemberAttribute.Order : null;
+        hasMemberAttribute = true;
       }
 #endif
-      else
-      {
-        property.Required = Required.Default;
-      }
 
-      bool hasJsonIgnoreAttribute = JsonTypeReflector.GetAttribute<JsonIgnoreAttribute>(attributeProvider) != null
+      bool hasJsonIgnoreAttribute =
+        JsonTypeReflector.GetAttribute<JsonIgnoreAttribute>(attributeProvider) != null
 #if !(SILVERLIGHT || NETFX_CORE || PORTABLE)
         || JsonTypeReflector.GetAttribute<NonSerializedAttribute>(attributeProvider) != null
 #endif
@@ -967,19 +971,19 @@ namespace Newtonsoft.Json.Serialization
 
       if (memberSerialization != MemberSerialization.OptIn)
       {
-        // ignored if it has JsonIgnore or NonSerialized attributes
-        property.Ignored = hasJsonIgnoreAttribute;
+       bool hasIgnoreDataMemberAttribute = false;
+        
+#if !(NET20 || NET35)
+        hasIgnoreDataMemberAttribute = (JsonTypeReflector.GetAttribute<IgnoreDataMemberAttribute>(attributeProvider) != null);
+#endif
+
+        // ignored if it has JsonIgnore or NonSerialized or IgnoreDataMember attributes
+        property.Ignored = (hasJsonIgnoreAttribute || hasIgnoreDataMemberAttribute);
       }
       else
       {
         // ignored if it has JsonIgnore/NonSerialized or does not have DataMember or JsonProperty attributes
-        property.Ignored =
-          hasJsonIgnoreAttribute
-          || (propertyAttribute == null
-#if !PocketPC && !NET20
-              && dataMemberAttribute == null
-#endif
-             );
+        property.Ignored = (hasJsonIgnoreAttribute || !hasMemberAttribute);
       }
 
       // resolve converter for property
@@ -996,6 +1000,14 @@ namespace Newtonsoft.Json.Serialization
       property.ObjectCreationHandling = (propertyAttribute != null) ? propertyAttribute._objectCreationHandling : null;
       property.TypeNameHandling = (propertyAttribute != null) ? propertyAttribute._typeNameHandling : null;
       property.IsReference = (propertyAttribute != null) ? propertyAttribute._isReference : null;
+
+      property.ItemIsReference = (propertyAttribute != null) ? propertyAttribute._itemIsReference : null;
+      property.ItemConverter =
+        (propertyAttribute != null && propertyAttribute.ItemConverterType != null)
+          ? JsonConverterAttribute.CreateJsonConverterInstance(propertyAttribute.ItemConverterType)
+          : null;
+      property.ItemReferenceLoopHandling = (propertyAttribute != null) ? propertyAttribute._itemReferenceLoopHandling : null;
+      property.ItemTypeNameHandling = (propertyAttribute != null) ? propertyAttribute._itemTypeNameHandling : null;
 
       allowNonPublicAccess = false;
       if ((DefaultMembersSearchFlags & BindingFlags.NonPublic) == BindingFlags.NonPublic)
@@ -1054,6 +1066,18 @@ namespace Newtonsoft.Json.Serialization
     protected internal virtual string ResolvePropertyName(string propertyName)
     {
       return propertyName;
+    }
+
+    /// <summary>
+    /// Gets the resolved name of the property.
+    /// </summary>
+    /// <param name="propertyName">Name of the property.</param>
+    /// <returns>Name of the property.</returns>
+    public string GetResolvedPropertyName(string propertyName)
+    {
+      // this is a new method rather than changing the visibility of ResolvePropertyName to avoid
+      // a breaking change for anyone who has overidden the method
+      return ResolvePropertyName(propertyName);
     }
   }
 }

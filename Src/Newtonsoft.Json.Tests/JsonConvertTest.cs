@@ -40,9 +40,9 @@ using Newtonsoft.Json.Utilities;
 #if !NETFX_CORE
 using NUnit.Framework;
 #else
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using TestFixture = Microsoft.VisualStudio.TestTools.UnitTesting.TestClassAttribute;
-using Test = Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute;
+using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
+using TestFixture = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestClassAttribute;
+using Test = Microsoft.VisualStudio.TestPlatform.UnitTestFramework.TestMethodAttribute;
 #endif
 
 namespace Newtonsoft.Json.Tests
@@ -720,6 +720,34 @@ now brown cow?", '"', true);
         });
 
       Assert.AreEqual(@"""2000-01-01T01:01:01Z""", json);
+    }
+
+    //[Test]
+    public void StackOverflowTest()
+    {
+      StringBuilder sb = new StringBuilder();
+
+      int depth = 900;
+      for (int i = 0; i < depth; i++)
+      {
+        sb.Append("{'A':");
+      }
+
+      // invalid json
+      sb.Append("{***}");
+      for (int i = 0; i < depth; i++)
+      {
+        sb.Append("}");
+      }
+
+      string json = sb.ToString();
+      JsonSerializer serializer = new JsonSerializer() { };
+      serializer.Deserialize<Nest>(new JsonTextReader(new StringReader(json)));
+    }
+
+    public class Nest
+    {
+      public Nest A { get; set; }
     }
   }
 }
